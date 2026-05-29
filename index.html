@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#010a4b" />
 
-  <!-- PWA no iPhone/iPad (o iOS ignora o manifest e usa estas tags) -->
+  <!-- PWA no iPhone/iPad -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
@@ -19,36 +19,81 @@
 </head>
 <body>
 
-  <!-- Música de fundo (toca em loop). Dois formatos: MP3 para iPhone/Safari, OGG de reserva. -->
+  <!-- Música de fundo (loop). MP3 para iPhone/Safari, OGG de reserva. -->
   <audio id="musica-fundo" loop preload="auto">
     <source src="musica-fundo.mp3" type="audio/mpeg" />
     <source src="musica-fundo.ogg" type="audio/ogg" />
   </audio>
 
-  <!-- Botão de som: fixo no canto superior direito, visível em todas as telas. Começa desligado. -->
+  <!-- Botão de som: fixo, todas as telas. Começa desligado. -->
   <button id="btn-som" type="button" aria-label="Ligar a música" title="Música: desligada">🔇</button>
 
   <!-- ===================== TELA INICIAL ===================== -->
   <section id="tela-inicial" class="tela ativa">
     <h1>Super Trunfo Egípcio</h1>
     <p class="subtitulo">Os deuses, faraós e criaturas do Egito antigo em 32 cartas</p>
-    <button id="btn-iniciar" class="botao-grande">Jogar</button>
+
+    <div class="menu-inicial">
+      <button id="btn-criar-sala" class="botao-grande">Criar sala online</button>
+      <button id="btn-jogar-bots" class="botao-secundario">Jogar contra bots</button>
+    </div>
+
     <div class="regras">
       <h3>Como jogar</h3>
       <ul>
         <li>De 2 a 4 jogadores. As 32 cartas são divididas entre todos.</li>
         <li>O jogador da vez escolhe um atributo; todos viram a carta do topo e comparam.</li>
         <li>Quem tiver o maior valor leva todas as cartas da mesa e escolhe o próximo atributo.</li>
-        <li>Empate no topo: as cartas vão para a <strong>pilha de disputa</strong> e <strong>só os empatados</strong> disputam, em uma rodada extra entre eles. Quem vencer leva tudo e passa a escolher.</li>
+        <li>Empate no topo: as cartas vão para a <strong>pilha de disputa</strong> e <strong>só os empatados</strong> disputam, em uma rodada extra entre eles.</li>
         <li>Quem fica sem cartas é <strong>eliminado</strong>. Vence o último de pé.</li>
         <li><strong>Super Trunfo (Amon-Rá):</strong> 10 em todos os atributos — nunca perde, só empata.</li>
       </ul>
     </div>
   </section>
 
-  <!-- ===================== TELA DE LOBBY (montagem da partida) ===================== -->
+  <!-- ===================== TELA DE NOME (criar/entrar) ===================== -->
+  <section id="tela-entrar" class="tela">
+    <h1 class="titulo-medio" id="entrar-titulo">Como quer ser chamado?</h1>
+    <p class="subtitulo" id="entrar-sub">Escolha um nome para a partida.</p>
+
+    <div class="campo-nome">
+      <input id="input-nome" type="text" maxlength="16" placeholder="Seu nome" autocomplete="off" />
+    </div>
+
+    <p id="entrar-erro" class="aviso-erro"></p>
+
+    <div class="lobby-botoes">
+      <button id="btn-entrar-voltar" class="botao-secundario">Voltar</button>
+      <button id="btn-entrar-confirmar" class="botao-grande">Continuar</button>
+    </div>
+  </section>
+
+  <!-- ===================== TELA DE SALA (lobby online) ===================== -->
+  <section id="tela-sala" class="tela">
+    <h1 class="titulo-medio">Sala</h1>
+
+    <div id="convite" class="convite">
+      <p class="convite-rotulo">Link de convite — envie para quem vai jogar:</p>
+      <div class="convite-linha">
+        <input id="convite-link" type="text" readonly />
+        <button id="btn-copiar" class="botao-secundario">Copiar</button>
+      </div>
+      <p class="convite-codigo">Código: <strong id="convite-codigo">—</strong></p>
+    </div>
+
+    <div id="sala-assentos"><!-- preenchido pelo script --></div>
+
+    <p id="sala-status" class="aviso-lobby"></p>
+
+    <div class="lobby-botoes">
+      <button id="btn-sala-sair" class="botao-secundario">Sair</button>
+      <button id="btn-sala-comecar" class="botao-grande" style="display:none">Começar</button>
+    </div>
+  </section>
+
+  <!-- ===================== TELA DE LOBBY LOCAL (contra bots) ===================== -->
   <section id="tela-lobby" class="tela">
-    <h1 class="titulo-medio">Montar partida</h1>
+    <h1 class="titulo-medio">Jogar contra bots</h1>
     <p class="subtitulo">Defina cada assento. O assento 1 é você.</p>
 
     <div id="assentos"><!-- preenchido pelo script --></div>
@@ -64,14 +109,11 @@
   <!-- ===================== TELA DO JOGO ===================== -->
   <section id="tela-jogo" class="tela">
     <header id="placar"><!-- preenchido pelo script --></header>
-
-    <main id="mesa"><!-- preenchido pelo script (escolha / revelação) --></main>
-
+    <main id="mesa"><!-- preenchido pelo script --></main>
     <div id="status">
       <p id="mensagem">Escolha um atributo</p>
       <button id="btn-proxima" class="botao-grande" style="display:none">Próxima rodada</button>
     </div>
-
     <div id="botoes-atributos">
       <button class="btn-attr" data-attr="poder"><span class="nome-attr">Poder</span><span class="valor-attr" data-valor="poder">–</span></button>
       <button class="btn-attr" data-attr="inteligencia"><span class="nome-attr">Inteligência</span><span class="valor-attr" data-valor="inteligencia">–</span></button>
@@ -84,10 +126,14 @@
   <section id="tela-fim" class="tela">
     <h1 id="resultado-final"></h1>
     <p id="resumo-final"></p>
-    <button id="btn-recomecar" class="botao-grande">Jogar novamente</button>
+    <button id="btn-recomecar" class="botao-grande">Voltar ao início</button>
   </section>
 
+  <!-- Ordem importa: dados -> motor -> rede -> controle. O Firebase NÃO é
+       carregado aqui; o rede.js o baixa sob demanda só no modo online. -->
   <script src="cards.js"></script>
+  <script src="motor.js"></script>
+  <script src="rede.js"></script>
   <script src="script.js"></script>
 
   <!-- PWA: registra o service worker (faz o jogo funcionar offline) -->

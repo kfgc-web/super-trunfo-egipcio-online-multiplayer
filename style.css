@@ -478,3 +478,86 @@ h1 {
   .lobby-botoes .botao-grande,
   .lobby-botoes .botao-secundario { width: 100%; }
 }
+
+/* ====== Fase 3a: menu inicial, nome, sala online ====== */
+.menu-inicial {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  margin: 30px 0;
+}
+.menu-inicial .botao-grande,
+.menu-inicial .botao-secundario { min-width: 260px; }
+
+/* Campo de nome */
+.campo-nome { margin: 24px auto; max-width: 360px; }
+#input-nome {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 1.1rem;
+  font-family: inherit;
+  text-align: center;
+  color: #e8c87a;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+}
+#input-nome::placeholder { color: #8a7340; }
+#input-nome:focus { outline: none; box-shadow: 0 0 14px rgba(212, 175, 55, 0.4); }
+
+.aviso-erro { color: #dc7f7f; min-height: 1.4em; margin: 8px 0; }
+
+/* Tela de sala online */
+#tela-sala { text-align: center; padding-top: 30px; }
+
+.convite {
+  background: rgba(212, 175, 55, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 10px;
+  padding: 18px;
+  max-width: 600px;
+  margin: 0 auto 24px;
+}
+.convite-rotulo { color: #b89860; font-size: 0.95rem; margin-bottom: 10px; }
+.convite-linha { display: flex; gap: 8px; }
+#convite-link {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: #e8c87a;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 6px;
+}
+.convite-codigo { margin-top: 12px; color: #b89860; letter-spacing: 1px; }
+.convite-codigo strong { color: #d4af37; font-size: 1.3rem; letter-spacing: 3px; }
+
+#sala-assentos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.assento.meu { box-shadow: 0 0 18px rgba(255, 215, 0, 0.4); }
+
+.assento-ocupado {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 6px;
+  padding: 14px 10px;
+  color: #e8c87a;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+.assento-ocupado .mini { font-size: 0.8rem; color: #b89860; }
+
+@media (max-width: 760px) {
+  #sala-assentos { grid-template-columns: 1fr; }
+  .menu-inicial .botao-grande,
+  .menu-inicial .botao-secundario { width: 100%; min-width: 0; }
+  .convite-linha { flex-direction: column; }
+}
