@@ -1,0 +1,480 @@
+/* ========================================
+   SUPER TRUNFO EGÍPCIO — Estilos
+   Paleta: preto profundo + dourado (#d4af37)
+   ======================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: radial-gradient(circle at center, #1a1208 0%, #0a0604 100%);
+  color: #e8c87a;
+  font-family: Georgia, "Times New Roman", serif;
+  min-height: 100vh;
+  padding: 20px;
+  line-height: 1.5;
+}
+
+h1 {
+  font-size: 2.8rem;
+  color: #d4af37;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 10px rgba(212, 175, 55, 0.3);
+  margin-bottom: 10px;
+}
+
+.titulo-medio { font-size: 2rem; }
+
+/* ====== Sistema de telas ====== */
+.tela {
+  display: none;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.tela.ativa {
+  display: block;
+  animation: aparecer 0.3s ease-out;
+}
+
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ====== Tela inicial ====== */
+#tela-inicial { text-align: center; padding-top: 60px; }
+
+.subtitulo {
+  font-style: italic;
+  color: #b89860;
+  margin-bottom: 40px;
+  font-size: 1.15rem;
+}
+
+.regras {
+  background: rgba(212, 175, 55, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 10px;
+  padding: 25px;
+  max-width: 640px;
+  margin: 40px auto 0;
+  text-align: left;
+}
+
+.regras h3 {
+  color: #d4af37;
+  margin-bottom: 15px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.regras ul { list-style: none; }
+
+.regras li {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.regras li:last-child { border-bottom: none; }
+
+/* ====== Botões ====== */
+.botao-grande {
+  background: linear-gradient(135deg, #d4af37 0%, #b8941f 100%);
+  color: #1a1208;
+  border: none;
+  padding: 16px 40px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  letter-spacing: 1px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  margin: 20px 0;
+}
+
+.botao-grande:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+}
+
+.botao-grande:active { transform: translateY(0); }
+
+.botao-grande:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.botao-secundario {
+  background: transparent;
+  color: #d4af37;
+  border: 2px solid #d4af37;
+  padding: 14px 30px;
+  font-size: 1.05rem;
+  font-weight: bold;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  letter-spacing: 1px;
+  transition: background 0.15s;
+}
+
+.botao-secundario:hover { background: rgba(212, 175, 55, 0.15); }
+
+/* ====== Botão de som (fixo, todas as telas) ====== */
+#btn-som {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  z-index: 1000;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #d4af37;
+  background: rgba(26, 18, 8, 0.85);
+  color: #d4af37;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+#btn-som:hover {
+  transform: translateY(-2px);
+  background: rgba(212, 175, 55, 0.2);
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.4);
+}
+
+#btn-som:active { transform: translateY(0); }
+
+/* ====== Lobby (montagem da partida) ====== */
+#tela-lobby { text-align: center; padding-top: 40px; }
+
+#assentos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  max-width: 680px;
+  margin: 30px auto 0;
+}
+
+.assento {
+  background: rgba(212, 175, 55, 0.05);
+  border: 2px solid var(--cor, #d4af37);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.assento-titulo {
+  color: var(--cor, #d4af37);
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+}
+
+.assento-ops { display: flex; flex-direction: column; gap: 8px; }
+
+.op-assento {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: #e8c87a;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.op-assento:hover { background: rgba(212, 175, 55, 0.15); }
+
+.op-assento.sel {
+  background: var(--cor, #d4af37);
+  color: #1a1208;
+  font-weight: bold;
+  border-color: var(--cor, #d4af37);
+}
+
+.assento-fixo {
+  background: var(--cor, #d4af37);
+  color: #1a1208;
+  font-weight: bold;
+  letter-spacing: 1px;
+  padding: 12px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.aviso-lobby {
+  color: #b89860;
+  margin-top: 22px;
+  font-style: italic;
+  min-height: 1.4em;
+}
+
+.lobby-botoes {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+}
+
+/* ====== Placar (um bloco por jogador + pilha) ====== */
+#placar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.bloco-placar {
+  text-align: center;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-top: 3px solid var(--cor, #d4af37);
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-width: 96px;
+}
+
+.bloco-placar.pilha { border-top-color: #888; opacity: 0.95; }
+
+.bloco-placar.eliminado { opacity: 0.4; filter: grayscale(0.7); }
+
+.rotulo {
+  display: block;
+  font-size: 0.8rem;
+  color: #b89860;
+  letter-spacing: 0.5px;
+}
+
+.numero {
+  display: block;
+  font-size: 1.8rem;
+  color: var(--cor, #d4af37);
+  font-weight: bold;
+}
+
+.bloco-placar.pilha .numero { color: #ccc; }
+
+/* ====== Mesa (área central) ====== */
+#mesa {
+  min-height: 420px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+
+/* Fase de escolha de um humano: carta única, centralizada */
+.mesa-escolha { text-align: center; width: 100%; max-width: 340px; }
+
+.rotulo-lado {
+  color: var(--cor, #b89860);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+/* Grade de cartas (revelação / vez do bot): 2 a 4 cartas lado a lado */
+.mesa-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.slot-mesa {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.slot-nome {
+  color: var(--cor, #d4af37);
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+/* ====== Carta ====== */
+.carta {
+  background: linear-gradient(180deg, #1a1208 0%, #0a0604 100%);
+  border: 2px solid #d4af37;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(212, 175, 55, 0.15);
+}
+
+.carta img { width: 100%; display: block; }
+
+.carta-grande { max-width: 320px; margin: 0 auto; min-height: 400px; }
+
+.carta-media { width: 200px; }
+
+.carta-nome {
+  padding: 10px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-align: center;
+  color: #d4af37;
+  letter-spacing: 1px;
+  border-top: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.carta-grande .carta-nome { font-size: 1.3rem; }
+
+.super-trunfo-tag {
+  font-size: 0.65rem;
+  color: #ffd700;
+  letter-spacing: 2px;
+  display: block;
+}
+
+/* Carta virada (oculta) */
+.carta-verso {
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 5rem;
+  color: #d4af37;
+  background: repeating-linear-gradient(
+    45deg,
+    #1a1208, #1a1208 10px,
+    #221a0c 10px, #221a0c 20px
+  );
+}
+
+.carta-media .carta-verso { font-size: 4rem; }
+
+/* Destaques de resultado */
+.slot-mesa.vencedora .carta {
+  border-color: #7fdc7f;
+  box-shadow: 0 0 26px rgba(127, 220, 127, 0.6);
+}
+
+.slot-mesa.empatada .carta {
+  border-color: #ffd700;
+  box-shadow: 0 0 22px rgba(255, 215, 0, 0.55);
+  animation: pulsar 1s ease-in-out infinite;
+}
+
+@keyframes pulsar {
+  0%, 100% { box-shadow: 0 0 18px rgba(255, 215, 0, 0.4); }
+  50%      { box-shadow: 0 0 30px rgba(255, 215, 0, 0.75); }
+}
+
+.slot-mesa.perdedora .carta { opacity: 0.55; }
+
+/* Carta do próprio jogador na fase de escolha (sempre visível para ele) */
+.slot-mesa.local .carta {
+  border-color: #ffd700;
+  box-shadow: 0 0 22px rgba(255, 215, 0, 0.5);
+}
+
+.badge-valor.oculto { opacity: 0.45; font-style: italic; }
+
+.badge-valor {
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: #e8c87a;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.slot-mesa.vencedora .badge-valor { background: rgba(127, 220, 127, 0.2); border-color: #7fdc7f; color: #aef0ae; }
+
+.aviso-rank { color: #d4af37; font-style: italic; font-size: 1.1rem; padding: 40px 20px; text-align: center; }
+
+/* ====== Status / atributos ====== */
+#status { text-align: center; margin-bottom: 18px; min-height: 80px; }
+
+#mensagem { font-size: 1.15rem; color: #e8c87a; padding: 10px; }
+
+#mensagem.vitoria { color: #7fdc7f; }
+#mensagem.derrota { color: #dc7f7f; }
+#mensagem.empate  { color: #d4af37; }
+
+#botoes-atributos {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.btn-attr {
+  background: rgba(212, 175, 55, 0.1);
+  border: 2px solid #d4af37;
+  color: #e8c87a;
+  padding: 15px 10px;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  transition: all 0.15s;
+}
+
+.btn-attr:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.25);
+  transform: translateY(-2px);
+}
+
+.btn-attr:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.nome-attr { font-size: 0.9rem; letter-spacing: 1px; }
+
+.valor-attr { font-size: 1.6rem; font-weight: bold; color: #d4af37; }
+
+/* ====== Tela final ====== */
+#tela-fim { text-align: center; padding-top: 100px; }
+
+#resultado-final { font-size: 2.6rem; margin-bottom: 20px; }
+
+#resumo-final { font-size: 1.2rem; color: #b89860; margin-bottom: 30px; }
+
+/* ====== Responsivo (celular) ====== */
+@media (max-width: 760px) {
+  body { padding: 10px; }
+  h1 { font-size: 2rem; }
+  .titulo-medio { font-size: 1.6rem; }
+
+  #assentos { grid-template-columns: 1fr; }
+
+  .mesa-grid { gap: 12px; }
+
+  /* 4 cartas em telas pequenas: encolhe e mantém 2 por linha */
+  .carta-media { width: 44vw; max-width: 180px; }
+  .carta-grande { max-width: 86vw; min-height: 0; }
+
+  #botoes-atributos { grid-template-columns: repeat(2, 1fr); }
+
+  .numero { font-size: 1.5rem; }
+  .bloco-placar { min-width: 80px; padding: 8px 10px; }
+
+  #btn-som { top: 10px; right: 10px; width: 42px; height: 42px; font-size: 1.2rem; }
+
+  .lobby-botoes { flex-direction: column-reverse; }
+  .lobby-botoes .botao-grande,
+  .lobby-botoes .botao-secundario { width: 100%; }
+}
