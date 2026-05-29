@@ -149,16 +149,19 @@
     }
     if (!livres.length) throw new Error("Não há vagas livres nesta sala.");
 
-    // Ocupa o primeiro livre de forma atômica (evita dois entrarem no mesmo)
+    // Ocupa o primeiro livre de forma atômica (evita dois entrarem no mesmo).
+    // CUIDADO: o Firebase chama esta função primeiro com o cache LOCAL, que pode
+    // ser null se este aparelho ainda não tinha o dado. Se abortássemos no null,
+    // o servidor nunca seria consultado e a vaga jamais seria ocupada (era o bug).
+    // Por isso só abortamos quando o SERVIDOR confirma que está ocupado/indisponível.
     let ocupado = null;
     for (const i of livres) {
       const ref = db.ref("salas/" + codigo + "/assentos/" + i);
       const res = await ref.transaction(atual => {
-        if (atual && atual.tipo === "humano" && !atual.uid) {
-          return { tipo: "humano", uid: uid, nome: nome || ("Jogador " + (i + 1)), online: true };
-        }
-        return; // aborta: alguém pegou primeiro
-      });
+        if (atual && atual.uid && atual.uid !== uid) return;        // já ocupado por outro
+        if (atual && atual.tipo && atual.tipo !== "humano") return; // virou bot/vazia
+        return { tipo: "humano", uid: uid, nome: nome || ("Jogador " + (i + 1)), online: true };
+      }, undefined, false);
       if (res.committed && res.snapshot.val() && res.snapshot.val().uid === uid) {
         ocupado = i;
         break;
