@@ -561,3 +561,11 @@ h1 {
   .menu-inicial .botao-secundario { width: 100%; min-width: 0; }
   .convite-linha { flex-direction: column; }
 }
+
+/* ====== Fase 3b: destaques da partida online ====== */
+.bloco-placar.meu-placar {
+  outline: 2px solid #ffd700;
+  outline-offset: 1px;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+}
+.mini-espera { color: #b89860; font-style: italic; font-size: 0.9em; }

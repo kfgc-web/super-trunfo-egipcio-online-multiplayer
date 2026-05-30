@@ -1,16 +1,24 @@
 /* ============================================================
-   SUPER TRUNFO EGÍPCIO — CONTROLE + TELA (Fase 3a)
+   SUPER TRUNFO EGÍPCIO — CONTROLE + TELA (Fase 3b)
    ============================================================
-   O MOTOR (regras) está em motor.js. A REDE (Firebase) está em
-   rede.js. Aqui ficam: o jogo local contra bots, a renderização
-   da partida, o lobby local e o fluxo de sala ONLINE (criar sala,
-   entrar por link, presença). A partida online sincronizada entra
-   na Fase 3b.
+   MOTOR (regras) -> motor.js | REDE (Firebase) -> rede.js
+   Aqui: jogo local contra bots, renderização, lobby local,
+   sala online (3a) e a PARTIDA ONLINE sincronizada (3b).
+
+   Modelo online: o HOST roda o motor e é a fonte da verdade.
+   Ele publica o estado; os clientes leem e renderizam, e enviam
+   apenas sua jogada na própria vez.
    ============================================================ */
 
-// ====== Estado da partida local ======
+// ====== Estado da partida (serve para local E online) ======
 let estado = null;
 let travado = false;
+
+// ====== Controle do modo online ======
+let modoOnline = false;       // partida online em andamento?
+let souHostJogo = false;      // sou eu quem roda o motor?
+let meuIdMotor = null;        // meu índice de jogador dentro do motor
+let ultimaListaAssentos = null;
 
 const ESPERA_BOT = 1100;
 const ESPERA_RANK = 900;
@@ -22,51 +30,10 @@ function mostrarTela(idTela) {
 
 
 /* ============================================================
-   JOGO LOCAL (contra bots) — usa o motor de motor.js
-   ============================================================ */
-
-function iniciarPartida(configJogadores) {
-  estado = criarPartida(configJogadores);
-  mostrarTela("tela-jogo");
-  proximaFase();
-}
-
-function proximaFase() {
-  travado = false;
-  estado.mesa = {};
-  renderPlacar();
-
-  if (estado.fimDeJogo) return mostrarFim();
-
-  if (precisaResolverPorRank(estado)) {
-    renderEsperaRank();
-    setTimeout(() => { resolverPorRank(estado); renderRevelacao(); }, ESPERA_RANK);
-    return;
-  }
-
-  const quem = escolhedorVigente(estado);
-  const jog = estado.jogadores[quem];
-
-  renderFaseEscolha();
-  if (jog.tipo === "bot") {
-    setTimeout(() => {
-      if (!estado) return;
-      const attr = botEscolheAtributo(estado, quem);
-      aplicarEscolha(attr);
-    }, ESPERA_BOT);
-  }
-}
-
-function aplicarEscolha(atributo) {
-  if (travado) return;
-  travado = true;
-  resolverComparacao(estado, atributo);
-  renderRevelacao();
-}
-
-
-/* ============================================================
-   RENDERIZAÇÃO DA PARTIDA
+   RENDERIZAÇÃO (parametrizada por perspectiva)
+   ============================================================
+   "perspectiva" = índice do jogador que é VOCÊ nesta tela. A sua
+   carta aparece; as dos outros ficam viradas até a revelação.
    ============================================================ */
 
 function htmlCartaCompleta(carta) {
@@ -92,9 +59,10 @@ function renderPlacar() {
     if (estado.desempate && emDesempate.has(j.id)) selos.push("⚔️");
     if (j.tipo === "bot") selos.push("🤖");
     if (j.eliminado) selos.push("💀");
+    const ehMeu = modoOnline && j.id === meuIdMotor;
     return `
-      <div class="bloco-placar ${j.eliminado ? "eliminado" : ""}" style="--cor:${j.cor}">
-        <span class="rotulo">${j.nome} ${selos.join("")}</span>
+      <div class="bloco-placar ${j.eliminado ? "eliminado" : ""} ${ehMeu ? "meu-placar" : ""}" style="--cor:${j.cor}">
+        <span class="rotulo">${j.nome}${ehMeu ? " (você)" : ""} ${selos.join("")}</span>
         <span class="numero">${j.mao.length}</span>
       </div>`;
   }).join("");
@@ -108,25 +76,21 @@ function renderPlacar() {
   document.getElementById("placar").innerHTML = blocosJog + blocoPilha;
 }
 
-// Entre os participantes da comparação atual, o primeiro humano vivo (menor índice).
-// (Na fase online, isto vira simplesmente "o dono deste aparelho".)
+// Local: 1º humano vivo entre os participantes (para o caso de bot escolhendo).
 function humanoDeReferencia(estado) {
   const part = participantesAtuais(estado);
   const humanos = part.filter(id => estado.jogadores[id].tipo === "humano" && !estado.jogadores[id].eliminado);
   return humanos.length ? Math.min(...humanos) : null;
 }
 
-// Fase de escolha (humano OU bot). Cada jogador SEMPRE vê a própria carta;
-// as dos outros ficam viradas até a revelação.
-function renderFaseEscolha() {
+// Fase de escolha. perspectiva = quem vê a própria carta; podeEscolher = mostra botões.
+function renderFaseEscolha(perspectiva, podeEscolher) {
   const escolhe = escolhedorVigente(estado);
-  const ehBot = estado.jogadores[escolhe].tipo === "bot";
-  const local = ehBot ? humanoDeReferencia(estado) : escolhe;
   const part = participantesAtuais(estado);
 
   const cartasHTML = part.map(id => {
     const j = estado.jogadores[id];
-    const ehLocal = id === local;
+    const ehLocal = id === perspectiva;
     const corpo = ehLocal ? htmlCartaCompleta(j.mao[0]) : htmlCartaVerso();
     const selo = ehLocal
       ? `<span class="badge-valor">Sua carta</span>`
@@ -144,12 +108,7 @@ function renderFaseEscolha() {
   const msg = document.getElementById("mensagem");
   msg.className = estado.desempate ? "empate" : "";
 
-  if (ehBot) {
-    mostrarAtributos(false);
-    msg.textContent = estado.desempate
-      ? `${estado.jogadores[escolhe].nome} está escolhendo o desempate…`
-      : `${estado.jogadores[escolhe].nome} está escolhendo…`;
-  } else {
+  if (podeEscolher) {
     const carta = estado.jogadores[escolhe].mao[0];
     document.querySelectorAll(".btn-attr").forEach(btn => {
       const a = btn.dataset.attr;
@@ -158,8 +117,14 @@ function renderFaseEscolha() {
     });
     mostrarAtributos(true);
     msg.textContent = estado.desempate
-      ? `Empate! ${estado.jogadores[escolhe].nome}, escolha o atributo do desempate.`
-      : `${estado.jogadores[escolhe].nome}, escolha um atributo.`;
+      ? `Empate! Sua vez: escolha o atributo do desempate.`
+      : `Sua vez, ${estado.jogadores[escolhe].nome}: escolha um atributo.`;
+  } else {
+    mostrarAtributos(false);
+    const nome = estado.jogadores[escolhe].nome;
+    msg.textContent = estado.desempate
+      ? `${nome} está escolhendo o desempate…`
+      : `${nome} está escolhendo…`;
   }
 
   document.getElementById("btn-proxima").style.display = "none";
@@ -226,15 +191,24 @@ function mostrarAtributos(mostrar) {
   document.getElementById("botoes-atributos").style.display = mostrar ? "grid" : "none";
 }
 
+function esconderProxima() {
+  document.getElementById("btn-proxima").style.display = "none";
+}
+
 function mostrarFim() {
   const venc = estado.vencedor;
   let titulo, resumo;
+  const souEuVencedor = modoOnline && venc !== null && estado.jogadores[venc].assento === REDE.meuAssento;
+
   if (venc === null) {
     titulo = "Empate técnico";
     resumo = "Ninguém sobrou com cartas. Resultado raríssimo.";
+  } else if (souEuVencedor) {
+    titulo = "🏆 Você venceu!";
+    resumo = "Você dominou o baralho. Os deuses escolheram seu campeão.";
   } else if (estado.jogadores[venc].tipo === "humano") {
     titulo = "🏆 " + estado.jogadores[venc].nome + " venceu!";
-    resumo = `${estado.jogadores[venc].nome} dominou o baralho. Os deuses escolheram seu campeão.`;
+    resumo = `${estado.jogadores[venc].nome} dominou o baralho.`;
   } else {
     titulo = "💀 " + estado.jogadores[venc].nome + " venceu";
     resumo = `${estado.jogadores[venc].nome} ficou com todas as cartas. Tente de novo.`;
@@ -246,7 +220,53 @@ function mostrarFim() {
 
 
 /* ============================================================
-   LOBBY LOCAL (contra bots) — assento 1 é você
+   JOGO LOCAL (contra bots)
+   ============================================================ */
+
+function iniciarPartida(configJogadores) {
+  modoOnline = false; souHostJogo = false; meuIdMotor = null;
+  estado = criarPartida(configJogadores);
+  mostrarTela("tela-jogo");
+  proximaFase();
+}
+
+function proximaFase() {
+  travado = false;
+  estado.mesa = {};
+  renderPlacar();
+
+  if (estado.fimDeJogo) return mostrarFim();
+
+  if (precisaResolverPorRank(estado)) {
+    renderEsperaRank();
+    setTimeout(() => { resolverPorRank(estado); renderRevelacao(); }, ESPERA_RANK);
+    return;
+  }
+
+  const quem = escolhedorVigente(estado);
+  const jog = estado.jogadores[quem];
+
+  if (jog.tipo === "bot") {
+    renderFaseEscolha(humanoDeReferencia(estado), false);
+    setTimeout(() => {
+      if (!estado) return;
+      aplicarEscolha(botEscolheAtributo(estado, quem));
+    }, ESPERA_BOT);
+  } else {
+    renderFaseEscolha(quem, true);
+  }
+}
+
+function aplicarEscolha(atributo) {
+  if (travado) return;
+  travado = true;
+  resolverComparacao(estado, atributo);
+  renderRevelacao();
+}
+
+
+/* ============================================================
+   LOBBY LOCAL (contra bots)
    ============================================================ */
 
 let configAssentos = ["humano", "bot", "vazia", "vazia"];
@@ -306,10 +326,10 @@ function comecarDoLobby() {
 
 
 /* ============================================================
-   FLUXO ONLINE (Fase 3a): criar sala, entrar por link, presença
+   SALA ONLINE (Fase 3a): criar, entrar, presença
    ============================================================ */
 
-let modoEntrar = "host";     // "host" | "guest"
+let modoEntrar = "host";
 let codigoEntrar = null;
 
 function abrirCriarSala() {
@@ -344,14 +364,10 @@ async function confirmarEntrar() {
   erro.textContent = "";
 
   try {
-    if (modoEntrar === "host") {
-      await REDE.criarSala(nome);
-    } else {
-      await REDE.entrarSala(codigoEntrar, nome);
-    }
+    if (modoEntrar === "host") await REDE.criarSala(nome);
+    else await REDE.entrarSala(codigoEntrar, nome);
     abrirSala();
   } catch (e) {
-    // Provável: offline (Firebase não baixou) ou erro de sala
     const offline = /carregar|network|fetch|offline/i.test(e.message || "");
     erro.textContent = offline
       ? "Sem internet para o modo online. Você ainda pode jogar contra bots."
@@ -364,12 +380,9 @@ async function confirmarEntrar() {
 
 function abrirSala() {
   mostrarTela("tela-sala");
-
   const codigo = REDE.salaAtual;
   document.getElementById("convite-link").value = REDE.linkConvite(codigo);
   document.getElementById("convite-codigo").textContent = codigo;
-
-  // O bloco de convite faz mais sentido para o host (quem divulga)
   document.getElementById("convite").style.display = REDE.souHost ? "block" : "none";
 
   REDE.escutarAssentos(renderSalaAssentos);
@@ -377,6 +390,7 @@ function abrirSala() {
 }
 
 function renderSalaAssentos(lista) {
+  ultimaListaAssentos = lista;
   const cont = document.getElementById("sala-assentos");
   const souHost = REDE.souHost;
   const meu = REDE.meuAssento;
@@ -386,7 +400,6 @@ function renderSalaAssentos(lista) {
     let conteudo;
 
     if (souHost && i !== 0) {
-      // Host configura assentos 1-3 (humano/bot/vazia). Se humano ocupado, mostra quem.
       if (a.tipo === "humano" && a.uid) {
         const status = a.online ? "🟢 online" : "🔴 caiu";
         conteudo = `<div class="assento-ocupado">👤 ${a.nome || "Jogador"}<br><span class="mini">${status}</span></div>`;
@@ -398,7 +411,6 @@ function renderSalaAssentos(lista) {
         }).join("");
       }
     } else {
-      // Visão de leitura (host no assento 0, ou convidado em qualquer assento)
       let txt;
       if (i === 0) txt = `👑 ${a.nome || "Anfitrião"}`;
       else if (a.tipo === "bot") txt = "🤖 Bot";
@@ -418,53 +430,201 @@ function renderSalaAssentos(lista) {
 
   cont.innerHTML = html;
 
-  // Liga os botões de configuração (somente host)
   cont.querySelectorAll(".op-assento").forEach(btn => {
     btn.addEventListener("click", () => {
       REDE.configurarAssento(Number(btn.dataset.assento), btn.dataset.op);
     });
   });
 
-  // Mensagem de status do lobby
   const status = document.getElementById("sala-status");
+  const btnComecar = document.getElementById("btn-sala-comecar");
   if (souHost) {
-    const humanosAbertos = lista.filter((a, i) => i !== 0 && a.tipo === "humano" && !a.uid).length;
-    const humanosDentro = lista.filter((a, i) => i !== 0 && a.tipo === "humano" && a.uid).length;
-    status.textContent = `Compartilhe o link. ${humanosDentro} jogador(es) na sala, ${humanosAbertos} vaga(s) aberta(s). ` +
-      `(O início da partida em rede entra na próxima etapa.)`;
+    const ativos = lista.filter(a => a.tipo !== "vazia").length;
+    btnComecar.style.display = "inline-block";
+    btnComecar.disabled = ativos < 2;
+    status.textContent = ativos < 2
+      ? "Configure ao menos 2 participantes para começar."
+      : `${ativos} participantes. Vagas humanas não ocupadas viram bots ao começar.`;
   } else {
+    btnComecar.style.display = "none";
     status.textContent = "Você entrou! Aguardando o anfitrião iniciar a partida.";
   }
 }
 
 function onStatusSala(status) {
   if (status === "encerrada") {
-    REDE.sair();
-    alert("A sala foi encerrada pelo anfitrião.");
-    mostrarTela("tela-inicial");
+    if (!REDE.souHost) {
+      REDE.sair();
+      alert("A sala foi encerrada pelo anfitrião.");
+      mostrarTela("tela-inicial");
+    }
+    return;
   }
-  // status === "jogando" será tratado na Fase 3b (início da partida sincronizada)
+  if (status === "jogando" && !REDE.souHost && !modoOnline) {
+    entrarModoJogoCliente();
+  }
 }
 
 function sairDaSala() {
-  if (REDE.souHost) {
-    REDE.encerrar();
-  } else {
-    REDE.sair();
-  }
+  if (REDE.souHost) REDE.encerrar();
+  else REDE.sair();
+  modoOnline = false; souHostJogo = false; estado = null; meuIdMotor = null;
   mostrarTela("tela-inicial");
 }
 
 function copiarLink() {
   const campo = document.getElementById("convite-link");
   const btn = document.getElementById("btn-copiar");
-  const texto = campo.value;
   const feedback = () => { btn.textContent = "Copiado!"; setTimeout(() => btn.textContent = "Copiar", 1500); };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(texto).then(feedback).catch(() => { campo.select(); document.execCommand("copy"); feedback(); });
+    navigator.clipboard.writeText(campo.value).then(feedback).catch(() => { campo.select(); document.execCommand("copy"); feedback(); });
   } else {
     campo.select(); document.execCommand("copy"); feedback();
   }
+}
+
+
+/* ============================================================
+   PARTIDA ONLINE (Fase 3b)
+   ============================================================ */
+
+// --- HOST: monta os jogadores a partir dos assentos e inicia ---
+function comecarPartidaOnline() {
+  const lista = ultimaListaAssentos;
+  if (!lista) return;
+
+  const config = [];
+  lista.forEach((a, i) => {
+    if (i === 0) config.push({ nome: a.nome || "Anfitrião", tipo: "humano", _assento: 0 });
+    else if (a.tipo === "bot") config.push({ nome: "Bot " + (i + 1), tipo: "bot", _assento: i });
+    else if (a.tipo === "humano" && a.uid) config.push({ nome: a.nome || ("Jogador " + (i + 1)), tipo: "humano", _assento: i });
+    else if (a.tipo === "humano") config.push({ nome: "Bot " + (i + 1), tipo: "bot", _assento: i }); // vaga não ocupada vira bot
+    // "vazia": ignorado
+  });
+  if (config.length < 2) { alert("Configure pelo menos 2 participantes."); return; }
+
+  estado = criarPartida(config.map(c => ({ nome: c.nome, tipo: c.tipo })));
+  estado.jogadores.forEach((j, idx) => {
+    j.assento = config[idx]._assento;   // amarra o id do motor ao assento da sala
+    j.cor = CORES[j.assento];
+  });
+  estado.fase = "escolha";
+
+  modoOnline = true;
+  souHostJogo = true;
+  meuIdMotor = estado.jogadores.findIndex(j => j.assento === 0);
+
+  mostrarTela("tela-jogo");
+  REDE.escutarAcoes(onAcoesRecebidas);
+  REDE.iniciarJogo();
+  avancarHost();
+}
+
+// --- HOST: motor da partida; decide o próximo passo e publica o estado ---
+function avancarHost() {
+  if (!souHostJogo || !estado) return;
+
+  renderPlacar();
+  REDE.publicarEstado(estado);   // entrega o estado aos clientes
+
+  if (estado.fimDeJogo) { mostrarFim(); return; }
+
+  if (estado.fase === "revelacao") {
+    renderRevelacao();           // host vê "Próxima rodada"; clientes aguardam
+    return;
+  }
+
+  // fase de escolha
+  if (precisaResolverPorRank(estado)) {
+    renderEsperaRank();
+    setTimeout(() => {
+      if (!souHostJogo) return;
+      resolverPorRank(estado);
+      estado.fase = "revelacao";
+      avancarHost();
+    }, ESPERA_RANK);
+    return;
+  }
+
+  const escolhe = escolhedorVigente(estado);
+  const jog = estado.jogadores[escolhe];
+  const souEu = jog.tipo === "humano" && escolhe === meuIdMotor;
+  renderFaseEscolha(meuIdMotor, souEu);
+
+  if (jog.tipo === "bot") {
+    setTimeout(() => {
+      if (!souHostJogo) return;
+      resolverComparacao(estado, botEscolheAtributo(estado, escolhe));
+      estado.fase = "revelacao";
+      avancarHost();
+    }, ESPERA_BOT);
+  }
+  // humano (host): espera o clique local. humano (cliente): espera a ação remota.
+}
+
+// --- HOST: aplica uma escolha (própria ou recebida de um cliente) ---
+function aplicarEscolhaOnline(atributo) {
+  if (!souHostJogo || !estado || estado.fase !== "escolha") return;
+  if (precisaResolverPorRank(estado)) return;
+  resolverComparacao(estado, atributo);
+  estado.fase = "revelacao";
+  avancarHost();
+}
+
+// --- HOST: avança da revelação para a próxima rodada (todos avançam juntos) ---
+function proximaOnline() {
+  if (!souHostJogo || !estado) return;
+  estado.mesa = {};
+  estado.fase = "escolha";
+  avancarHost();
+}
+
+// --- HOST: processa as ações recebidas dos clientes ---
+function onAcoesRecebidas(acoes) {
+  if (!souHostJogo || !estado || estado.fase !== "escolha") { REDE.limparAcoes(); return; }
+  const escolhe = escolhedorVigente(estado);
+  const jog = estado.jogadores[escolhe];
+  const ac = acoes[jog.assento];   // só interessa a ação de quem é a vez
+  REDE.limparAcoes();
+  if (jog.tipo === "humano" && jog.assento !== 0 && ac && ATRIBUTOS.includes(ac.atributo)) {
+    aplicarEscolhaOnline(ac.atributo);
+  }
+}
+
+// --- CLIENTE: entra no modo jogo e passa a escutar o estado ---
+function entrarModoJogoCliente() {
+  modoOnline = true;
+  souHostJogo = false;
+  meuIdMotor = null;
+  mostrarTela("tela-jogo");
+  REDE.escutarEstado(onEstadoRecebido);
+}
+
+// --- CLIENTE: recebe um novo estado e renderiza pela sua perspectiva ---
+function onEstadoRecebido(estadoObj) {
+  estado = estadoObj;
+  if (meuIdMotor === null) {
+    const meu = estado.jogadores.find(j => j.assento === REDE.meuAssento);
+    meuIdMotor = meu ? meu.id : null;
+  }
+  renderPlacar();
+
+  if (estado.fimDeJogo) { mostrarFim(); return; }
+
+  if (estado.fase === "revelacao") {
+    renderRevelacao();
+    esconderProxima();   // só o host controla o avanço
+    const msg = document.getElementById("mensagem");
+    msg.innerHTML += ' <span class="mini-espera">— aguardando o anfitrião…</span>';
+    return;
+  }
+
+  // fase de escolha
+  const escolhe = escolhedorVigente(estado);
+  const souEscolhedor = escolhe === meuIdMotor &&
+                        meuIdMotor !== null &&
+                        estado.jogadores[meuIdMotor].tipo === "humano";
+  renderFaseEscolha(meuIdMotor, souEscolhedor);
 }
 
 
@@ -491,7 +651,7 @@ btnSom.addEventListener("click", () => {
 
 
 /* ============================================================
-   LIGAÇÕES DE TELA E INÍCIO
+   LIGAÇÕES DE TELA E ROTEAMENTO DOS BOTÕES
    ============================================================ */
 
 // Tela inicial
@@ -501,33 +661,53 @@ document.getElementById("btn-jogar-bots").addEventListener("click", () => {
   renderLobby();
 });
 
-// Tela de nome (criar/entrar)
+// Tela de nome
 document.getElementById("btn-entrar-confirmar").addEventListener("click", confirmarEntrar);
 document.getElementById("btn-entrar-voltar").addEventListener("click", () => mostrarTela("tela-inicial"));
 document.getElementById("input-nome").addEventListener("keydown", e => { if (e.key === "Enter") confirmarEntrar(); });
 
 // Tela de sala online
 document.getElementById("btn-sala-sair").addEventListener("click", sairDaSala);
+document.getElementById("btn-sala-comecar").addEventListener("click", comecarPartidaOnline);
 document.getElementById("btn-copiar").addEventListener("click", copiarLink);
 
-// Lobby local (contra bots)
+// Lobby local
 document.getElementById("btn-comecar").addEventListener("click", comecarDoLobby);
 document.getElementById("btn-voltar-lobby").addEventListener("click", () => mostrarTela("tela-inicial"));
 
-// Partida
-document.getElementById("btn-proxima").addEventListener("click", proximaFase);
-document.getElementById("btn-recomecar").addEventListener("click", () => mostrarTela("tela-inicial"));
+// Botão "Próxima rodada": local avança sozinho; online só o host avança para todos
+document.getElementById("btn-proxima").addEventListener("click", () => {
+  if (!modoOnline) proximaFase();
+  else if (souHostJogo) proximaOnline();
+});
 
+// Fim de jogo
+document.getElementById("btn-recomecar").addEventListener("click", () => {
+  if (modoOnline) {
+    if (REDE.souHost) REDE.encerrar(); else REDE.sair();
+    modoOnline = false; souHostJogo = false; estado = null; meuIdMotor = null;
+  }
+  mostrarTela("tela-inicial");
+});
+
+// Botões de atributo: roteia conforme o modo (local / host / cliente)
 document.querySelectorAll(".btn-attr").forEach(btn => {
   btn.addEventListener("click", () => {
-    const quem = estado && escolhedorVigente(estado);
-    if (estado && estado.jogadores[quem] && estado.jogadores[quem].tipo === "humano") {
-      aplicarEscolha(btn.dataset.attr);
+    const attr = btn.dataset.attr;
+    if (!estado) return;
+    const escolhe = escolhedorVigente(estado);
+
+    if (!modoOnline) {
+      if (estado.jogadores[escolhe] && estado.jogadores[escolhe].tipo === "humano") aplicarEscolha(attr);
+    } else if (souHostJogo) {
+      if (escolhe === meuIdMotor && estado.fase === "escolha") aplicarEscolhaOnline(attr);
+    } else {
+      if (escolhe === meuIdMotor && estado.fase === "escolha") REDE.enviarAcao(REDE.meuAssento, attr);
     }
   });
 });
 
-// Se a URL trouxe um ?sala=CÓDIGO, vai direto para entrar na sala.
+// ?sala=CÓDIGO na URL -> entrar direto
 (function detectarConvite() {
   const codigo = REDE.codigoNaURL();
   if (codigo) abrirEntrarSala(codigo);

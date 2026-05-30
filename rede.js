@@ -230,6 +230,56 @@
     return c ? c.toUpperCase().trim() : null;
   }
 
+  // ===== Fase 3b: partida sincronizada (estado + ações) =====
+
+  // HOST: marca a sala como "jogando" (dispara o início nos clientes)
+  function iniciarJogo() {
+    if (!souHost || !salaAtual) return Promise.resolve();
+    return db.ref("salas/" + salaAtual + "/meta/status").set("jogando");
+  }
+
+  // HOST: publica o estado completo da partida (como texto JSON)
+  function publicarEstado(estado) {
+    if (!salaAtual) return Promise.resolve();
+    return db.ref("salas/" + salaAtual + "/estado").set(JSON.stringify(estado));
+  }
+
+  // TODOS: escutam o estado da partida. cb recebe o objeto já desserializado.
+  function escutarEstado(cb) {
+    if (!salaAtual) return;
+    const ref = db.ref("salas/" + salaAtual + "/estado");
+    const fn = ref.on("value", snap => {
+      const v = snap.val();
+      if (!v) return;
+      try { cb(JSON.parse(v)); } catch (e) { console.error("Estado inválido:", e); }
+    });
+    listeners.push({ ref, evento: "value", fn });
+  }
+
+  // CLIENTE: envia sua jogada (escolha de atributo) para o host processar
+  function enviarAcao(assento, atributo) {
+    if (!salaAtual) return Promise.resolve();
+    return db.ref("salas/" + salaAtual + "/acoes/" + assento)
+      .set({ atributo: atributo, ts: firebase.database.ServerValue.TIMESTAMP });
+  }
+
+  // HOST: escuta as ações que chegam dos clientes
+  function escutarAcoes(cb) {
+    if (!salaAtual) return;
+    const ref = db.ref("salas/" + salaAtual + "/acoes");
+    const fn = ref.on("value", snap => {
+      const v = snap.val();
+      if (v) cb(v);
+    });
+    listeners.push({ ref, evento: "value", fn });
+  }
+
+  // HOST: limpa as ações já processadas
+  function limparAcoes() {
+    if (!salaAtual) return Promise.resolve();
+    return db.ref("salas/" + salaAtual + "/acoes").remove();
+  }
+
   window.REDE = {
     init,
     criarSala,
@@ -237,6 +287,12 @@
     entrarSala,
     escutarAssentos,
     escutarStatus,
+    iniciarJogo,
+    publicarEstado,
+    escutarEstado,
+    enviarAcao,
+    escutarAcoes,
+    limparAcoes,
     encerrar,
     sair,
     linkConvite,
