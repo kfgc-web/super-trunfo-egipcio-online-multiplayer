@@ -455,7 +455,8 @@ function onStatusSala(status) {
   if (status === "encerrada") {
     if (!REDE.souHost) {
       REDE.sair();
-      alert("A sala foi encerrada pelo anfitrião.");
+      modoOnline = false; souHostJogo = false; estado = null; meuIdMotor = null;
+      alert("A sala foi encerrada (o anfitrião saiu).");
       mostrarTela("tela-inicial");
     }
     return;
@@ -516,6 +517,7 @@ function comecarPartidaOnline() {
 
   mostrarTela("tela-jogo");
   REDE.escutarAcoes(onAcoesRecebidas);
+  REDE.escutarAssentos(onPresencaMudou);   // detecta quedas durante o jogo
   REDE.iniciarJogo();
   avancarHost();
 }
@@ -591,11 +593,38 @@ function onAcoesRecebidas(acoes) {
   }
 }
 
+// --- HOST: detecta quedas; quem cai durante o jogo vira bot ---
+function onPresencaMudou(lista) {
+  if (!souHostJogo || !estado || estado.fimDeJogo) return;
+  let mudou = false;
+  estado.jogadores.forEach(j => {
+    if (j.tipo === "humano" && j.assento !== 0 && !j.eliminado) {
+      const a = lista[j.assento];
+      if (a && a.uid && a.online === false) {
+        j.tipo = "bot";
+        if (!/\(bot\)$/.test(j.nome)) j.nome = j.nome + " (bot)";
+        mudou = true;
+      }
+    }
+  });
+  if (!mudou) return;
+
+  // Se a partida estava parada esperando justamente a jogada de quem caiu,
+  // avancarHost reassume e faz o bot jogar. Senão, só atualiza o estado para todos.
+  if (estado.fase === "escolha" && estado.jogadores[escolhedorVigente(estado)].tipo === "bot") {
+    avancarHost();
+  } else {
+    REDE.publicarEstado(estado);
+    renderPlacar();
+  }
+}
+
 // --- CLIENTE: entra no modo jogo e passa a escutar o estado ---
 function entrarModoJogoCliente() {
   modoOnline = true;
   souHostJogo = false;
   meuIdMotor = null;
+  REDE.fixarPresencaJogo();   // cair agora me marca offline (host me troca por bot)
   mostrarTela("tela-jogo");
   REDE.escutarEstado(onEstadoRecebido);
 }

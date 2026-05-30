@@ -88,16 +88,13 @@
     }
 
     const agora = firebase.database.ServerValue.TIMESTAMP;
-    const dados = {
-      meta: { host: uid, status: "lobby", criadaEm: agora },
-      assentos: {
-        0: { tipo: "humano", uid: uid, nome: nomeHost || "Anfitrião", online: true },
-        1: { tipo: "vazia", uid: null, nome: null, online: false },
-        2: { tipo: "vazia", uid: null, nome: null, online: false },
-        3: { tipo: "vazia", uid: null, nome: null, online: false }
-      }
-    };
-    await db.ref("salas/" + codigo).set(dados);
+    await db.ref("salas/" + codigo + "/meta").set({ host: uid, status: "lobby", criadaEm: agora });
+    await db.ref("salas/" + codigo + "/assentos").set({
+      0: { tipo: "humano", uid: uid, nome: nomeHost || "Anfitrião", online: true },
+      1: { tipo: "vazia", uid: null, nome: null, online: false },
+      2: { tipo: "vazia", uid: null, nome: null, online: false },
+      3: { tipo: "vazia", uid: null, nome: null, online: false }
+    });
 
     salaAtual = codigo;
     souHost = true;
@@ -280,6 +277,16 @@
     return db.ref("salas/" + salaAtual + "/acoes").remove();
   }
 
+  // CLIENTE: ao começar a partida, troca o comportamento de queda. No lobby, cair
+  // liberava a vaga; em jogo, cair apenas marca o assento como offline (preservando
+  // quem é), para o host poder substituí-lo por um bot sem perder a amarração.
+  function fixarPresencaJogo() {
+    if (!salaAtual || meuAssento === null || souHost) return;
+    const ref = db.ref("salas/" + salaAtual + "/assentos/" + meuAssento);
+    ref.onDisconnect().cancel();
+    ref.child("online").onDisconnect().set(false);
+  }
+
   window.REDE = {
     init,
     criarSala,
@@ -293,6 +300,7 @@
     enviarAcao,
     escutarAcoes,
     limparAcoes,
+    fixarPresencaJogo,
     encerrar,
     sair,
     linkConvite,
